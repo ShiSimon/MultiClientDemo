@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".MainActivity">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <mediaengine.fritt.mediaengine.SurfaceViewRender
+            android:id="@+id/full_screen_render"
+            android:layout_width="match_parent"
+            android:layout_height="550dp" />
+
+        <mediaengine.fritt.mediaengine.SurfaceViewRender
+            android:id="@+id/pip_video_view"
+            android:layout_width="wrap_content"
+            android:layout_height="144dp"
+            android:layout_gravity="bottom|right"
+            android:layout_margin="16dp" />
+
+        <mediaengine.fritt.mediaengine.SurfaceViewRender
+            android:id="@+id/show_video_view"
+            android:layout_width="wrap_content"
+            android:layout_height="144dp"
+            android:layout_gravity="center|left"
+            android:layout_margin="16dp" />
+
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="bottom"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/start"
+            android:layout_width="80dp"
+            android:layout_height="48dp"
+            android:text="start" />
+
+        <Button
+            android:id="@+id/play"
+            android:layout_width="80dp"
+            android:layout_height="48dp"
+            android:text="play" />
+
+        <Button
+            android:id="@+id/record"
+            android:layout_width="80dp"
+            android:layout_height="48dp"
+            android:text="record"/>
+
+        <Button
+            android:id="@+id/hangup"
+            android:layout_width="100dp"
+            android:layout_height="48dp"
+            android:text="disconnect"/>
+    </LinearLayout>
+
+
+</LinearLayout>
