@@ -46,6 +46,7 @@ public class MainActivity extends Activity{
     private Button start_button;
     private Button play_button;
     private Button record_button;
+    private Button stop_button;
     private Button disconnect_button;
     private WebSocketClient wsc;
 
@@ -68,6 +69,7 @@ public class MainActivity extends Activity{
         start_button = (Button) findViewById(R.id.start);
         play_button = (Button) findViewById(R.id.play);
         record_button = (Button) findViewById(R.id.record);
+        stop_button = (Button) findViewById(R.id.stop);
         disconnect_button = (Button) findViewById(R.id.hangup);
 
         mEglBase = new MEglBase();
@@ -81,7 +83,7 @@ public class MainActivity extends Activity{
         fullscreenRender.setEnableHardwareScaler(true);
 
         showRenderer.init(mEglBase);
-        showRenderer.setScaleType("SCALE_ASPECT_FILL");
+        showRenderer.setScaleType("SCALE_ASPECT_FIT");
         showRenderer.setZOrderMediaOverlay(true);
         showRenderer.setEnableHardwareScaler(true);
 
@@ -130,6 +132,13 @@ public class MainActivity extends Activity{
             }
         });
 
+        stop_button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                stopRecord();
+            }
+        });
+
         disconnect_button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -139,7 +148,7 @@ public class MainActivity extends Activity{
 
         mediaEngineParameters = new MediaEngineClient.MediaEngineParameters(true, false,
                 false, 640, 480, 0, 0, "VP8",
-                true, false, 0, "OPUS",
+                true, false, true,0, "OPUS",
                 false, false, false, false, false,
                 false, false, false);
 
@@ -148,10 +157,20 @@ public class MainActivity extends Activity{
         clientInterface = wsc;
     }
 
+    private void stopRecord(){
+        Log.d(TAG,"Stop Record");
+        clientInterface.stopRecord();
+    }
+
     private void startRecord(){
         Log.d(TAG,"startRecord");
         MediaEngineClient client = new MediaEngineClient();
         MediaEngineClient.MediaConnectionEvents mcEvents = new MCEvents("record-service",this);
+        mediaEngineParameters = new MediaEngineClient.MediaEngineParameters(false, false,
+                false, 640, 480, 0, 0, "VP8",
+                true, false, true,0, "OPUS",
+                false, false, false, false, false,
+                false, false, false);
         client.createMediaConnectionFactory(getApplicationContext(), mediaEngineParameters, mcEvents);
         Log.d(TAG,"After create　Factory");
         if(audioManager == null){
@@ -202,22 +221,27 @@ public class MainActivity extends Activity{
 
     private void startPlay(){
         Log.d(TAG,"startPlay");
+        mediaEngineParameters = new MediaEngineClient.MediaEngineParameters(false, false,
+                false, 640, 480, 0, 0, "VP8",
+                true, false, false,0, "OPUS",
+                false, false, false, false, false,
+                false, false, false);
         MediaEngineClient client = new MediaEngineClient();
         MediaEngineClient.MediaConnectionEvents mEvents = new MCEvents("play-service",this);
         client.createMediaConnectionFactory(getApplicationContext(),mediaEngineParameters,mEvents);
-        audioManager = AppRTCAudioManager.create(getApplicationContext());
-        // Store existing audio settings and change audio mode to
-        // MODE_IN_COMMUNICATION for best possible VoIP performance.
-        Log.d(TAG, "Starting the audio manager...");
-        audioManager.start(new AppRTCAudioManager.AudioManagerEvents() {
-            // This method will be called each time the number of available audio
-            // devices has changed.
-            @Override
-            public void onAudioDeviceChanged(
-                    AppRTCAudioManager.AudioDevice audioDevice, Set<AppRTCAudioManager.AudioDevice> availableAudioDevices) {
-                onAudioManagerDevicesChanged(audioDevice, availableAudioDevices);
-            }
-        });
+        if(audioManager == null){
+            audioManager = AppRTCAudioManager.create(getApplicationContext());
+            Log.d(TAG, "Starting the audio manager...");
+            audioManager.start(new AppRTCAudioManager.AudioManagerEvents() {
+                // This method will be called each time the number of available audio
+                // devices has changed.
+                @Override
+                public void onAudioDeviceChanged(
+                        AppRTCAudioManager.AudioDevice audioDevice, Set<AppRTCAudioManager.AudioDevice> availableAudioDevices) {
+                    onAudioManagerDevicesChanged(audioDevice, availableAudioDevices);
+                }
+            });
+        }
         MCEventsMap.put("play-service",mEvents);
         clientMap.put("play-service",client);
         SignalEvents se = new SignalEvents(this,"play-service");
@@ -229,10 +253,11 @@ public class MainActivity extends Activity{
         mediaEngineRenderer.release();
         showEngineRenderer.release();
         for(Object key:clientMap.keySet()){
-            clientInterface.disconnectFromRoom(key.toString());
+            clientInterface.disconnectChannel(key.toString());
             clientMap.get(key).close();
         }
         clientMap.clear();
+        wsc.disconnectWSC();
         if (pipRenderer != null) {
             pipRenderer.release();
             pipRenderer = null;
@@ -262,12 +287,12 @@ public class MainActivity extends Activity{
     }
 
     public void SendAttach(String key){
-        if(key.equals("echo-service")){
-            wsc.sendAttach(key,"echo-kXEcj2JFjoUF","service.echo");
-        }else if(key.equals("play-service")){
-            wsc.sendAttach(key,"recordplaytest-U2Md9D08sA3L","service.recordplay");
-        }else if(key.equals("record-service")){
-            wsc.sendAttach(key,"recordplaytest-VsrWIlAdhZ3Z","service.recordplay");
+        if(key.startsWith("echo")){
+            wsc.sendAttach(key,"echo-kXEcj2JFjoUF","service.echo","ECHO");
+        }else if(key.startsWith("record")){
+            wsc.sendAttach(key,"recordplaytest-U2Md9D08sA3L","service.recordplay","RECORD");
+        }else if(key.startsWith("play")){
+            wsc.sendAttach(key,"recordplaytest-U2Md9D08sA3L","service.recordplay","PLAY");
         }
     }
 
@@ -355,7 +380,7 @@ public class MainActivity extends Activity{
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                if(key.equals("echo-service")){
+                if(key.equals("echo-service") || key.equals("record-service")){
                     clientInterface.sendOfferSdp(key,sdp);
                 }else if(key.equals("play-service")){
                     clientInterface.sendAnswerSdp(key,sdp);
@@ -406,6 +431,23 @@ public class MainActivity extends Activity{
         });
     }
 
+    public void onChannelClose(final String key){
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Log.d(TAG,"close channel: " + key);
+                signalingEventsMap.remove(key);
+                MediaEngineClient client = clientMap.get(key);
+                client.close();
+                clientMap.remove(key);
+                MCEventsMap.remove(key);
+                fullscreenRender.clearImage();
+                pipRenderer.clearImage();
+                showRenderer.clearImage();
+            }
+        });
+    }
+
     private void setSwappedFeeds(boolean isSwappedFeeds) {
         Log.d(TAG, "setSwappedFeeds: " + isSwappedFeeds);
         this.isSwappedFeeds = isSwappedFeeds;
@@ -420,6 +462,8 @@ public class MainActivity extends Activity{
         //mediaEngineClient.enableStatsEvents(true, 1000);
         setSwappedFeeds(false /* isSwappedFeeds */);
     }
+
+
 
     @Override
     protected void onStart() {

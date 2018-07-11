@@ -9,6 +9,9 @@ public class MCMessageManager {
     public long handle_id;
     public String service_name;
     public String opaque_id;
+    public String record_name;
+
+    public String service_type;
 
     public MCMessageManager(){
         messageHandlers = new LinkedList<MessageHandler>();

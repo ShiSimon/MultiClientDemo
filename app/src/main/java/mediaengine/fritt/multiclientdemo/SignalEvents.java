@@ -65,7 +65,8 @@ public class SignalEvents implements ClientInterface.SignalingEvents {
 
     @Override
     public void onChannelClose() {
-
+        Log.d(TAG,"onChannelClose");
+        activity.onChannelClose(key);
     }
 
     @Override

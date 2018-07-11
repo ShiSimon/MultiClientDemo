@@ -40,27 +40,33 @@
 
         <Button
             android:id="@+id/start"
-            android:layout_width="80dp"
+            android:layout_width="75dp"
             android:layout_height="48dp"
             android:text="start" />
 
         <Button
             android:id="@+id/play"
-            android:layout_width="80dp"
+            android:layout_width="75dp"
             android:layout_height="48dp"
             android:text="play" />
 
         <Button
             android:id="@+id/record"
-            android:layout_width="80dp"
+            android:layout_width="75dp"
             android:layout_height="48dp"
             android:text="record"/>
 
         <Button
-            android:id="@+id/hangup"
-            android:layout_width="100dp"
+            android:id="@+id/stop"
+            android:layout_width="75dp"
             android:layout_height="48dp"
-            android:text="disconnect"/>
+            android:text="stop"/>
+
+        <Button
+            android:id="@+id/hangup"
+            android:layout_width="75dp"
+            android:layout_height="48dp"
+            android:text="exit"/>
     </LinearLayout>
 
 

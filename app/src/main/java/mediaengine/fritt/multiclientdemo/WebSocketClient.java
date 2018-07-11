@@ -92,7 +92,48 @@ public class WebSocketClient implements ClientInterface,WebSocketChannelClient.W
         });
     }
 
-    public void sendAttach(final String name,final String opaque_id,final String service_name){
+    @Override
+    public void stopRecord() {
+        Log.d(TAG,"stopRecord");
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                String key = findRecordkey();
+                MCMessageManager manager = (MCMessageManager) MCMmessageMangers.get(key);
+                MCMessageManager.MessageHandler local_message =
+                        new MCMessageManager.MessageHandler("message");
+                manager.messageHandlers.add(local_message);
+                JSONObject json = new JSONObject();
+                try{
+                    json.put("mms",local_message.getMms());
+                    json.put("transaction",local_message.getTransaction());
+                    json.put("session_id",manager.session_id);
+                    json.put("handle_id",manager.handle_id);
+                    JSONObject data = new JSONObject();
+                    data.put("request","stop");
+                    String data_string = data.toString();
+                    json.put("body",data);
+                    String message = json.toString();
+                    Log.d(TAG,"C->S :" + message);
+                    wsClient.send(message);
+                }catch (JSONException e){
+                    reportError("sendAttach error: " + e.getMessage());
+                }
+            }
+        });
+    }
+
+    private String findRecordkey(){
+        for(Object key:MCMmessageMangers.keySet()){
+            MCMessageManager manager = (MCMessageManager) MCMmessageMangers.get(key);
+            if(manager.service_type.equals("RECORD")){
+                return key.toString();
+            }
+        }
+        return null;
+    }
+
+    public void sendAttach(final String name, final String opaque_id, final String service_name, final String type){
         Log.d(TAG,"sendAttach :" + service_name);
         handler.post(new Runnable() {
             @Override
@@ -101,6 +142,7 @@ public class WebSocketClient implements ClientInterface,WebSocketChannelClient.W
                 MCMessageManager manager = (MCMessageManager) MCMmessageMangers.get(name);
                 manager.service_name = service_name;
                 manager.opaque_id = opaque_id;
+                manager.service_type = type;
                 MCMessageManager.MessageHandler handler = new MCMessageManager.MessageHandler("attach");
                 manager.messageHandlers.add(handler);
                 try{
@@ -150,8 +192,23 @@ public class WebSocketClient implements ClientInterface,WebSocketChannelClient.W
                     SignalingEvents event = (SignalingEvents) events.get(name);
                     event.onCreateConnectToServer();
                 }else {
-                    //Get the right messagemanger
                     String session_id = json.getString("session_id");
+                    long id = Long.parseLong(session_id);
+                    String name = getNameFromid(id);
+                    Log.d(TAG,"name = " + name);
+                    SignalingEvents event = (SignalingEvents) events.get(name);
+                    MCMessageManager manger = (MCMessageManager) MCMmessageMangers.get(name);
+                    if(manger.service_type.equals("ECHO")){
+                        onMessageEcho(json,event,manger);
+                    }else if(manger.service_type.equals("RECORD")){
+                        onMessageRecord(json,event,manger);
+                    }else if(manger.service_type.equals("PLAY")){
+                        onMessagePlay(json,event,manger);
+                    }else{
+                        Log.d(TAG,"Did not add service");
+                    }
+                    //Get the right messagemanger
+                    /*String session_id = json.getString("session_id");
                     long id = Long.parseLong(session_id);
                     String name = getNameFromid(id);
                     Log.d(TAG,"name = " + name);
@@ -184,7 +241,7 @@ public class WebSocketClient implements ClientInterface,WebSocketChannelClient.W
                                     Log.d(TAG,"echo-service");
                                     if(json.getString("mms").equals("event")){
                                         if(json.isNull("jsep")){
-                                            Log.d(TAG,"Trt to connect to room");
+                                            Log.d(TAG,"Try to connect to room");
                                             SignalingParameters params = new SignalingParameters(new LinkedList<IceServerInfo>(), true,
                                                 null, "ws://10.0.1.116:6660",null,null,null);
                                             ((SignalingEvents) events.get(name)).onConnectedToRoom(params);
@@ -207,7 +264,10 @@ public class WebSocketClient implements ClientInterface,WebSocketChannelClient.W
                                                     sdpjson.getString("sdp"));
                                             ((SignalingEvents) events.get(name)).onConnectedToAnswer(sdp);
                                         }else{
-
+                                            Log.d(TAG,"Try to connect to room");
+                                            SignalingParameters params = new SignalingParameters(new LinkedList<IceServerInfo>(), true,
+                                                    null, "ws://10.0.1.116:6660",null,null,null);
+                                            ((SignalingEvents) events.get(name)).onConnectedToRoom(params);
                                         }
                                     }else if (json.getString("mms").equals("ack")){
                                         return;
@@ -221,13 +281,148 @@ public class WebSocketClient implements ClientInterface,WebSocketChannelClient.W
                         }
                     }else{
                         return;
-                    }
+                    }*/
                 }
             }else{
                 Log.d(TAG,"Error from server");
             }
         }catch (JSONException e){
             reportError(e.getMessage());
+        }
+    }
+
+    private void onMessageEcho(final JSONObject json,final SignalingEvents events,MCMessageManager manager){
+        if(!json.isNull("transaction")){
+            try {
+                int ret = CheckIfInServerManager(manager,json.getString("transaction"));
+                if(ret != 10000){
+                    //response what have sended
+                    if(manager.messageHandlers.get(ret).getMms().equals("attach")){
+                        //Get handle id after send attach
+                        JSONObject data = json.getJSONObject("data");
+                        String handle_Id = data.getString("id");
+                        long tmp = Long.parseLong(handle_Id);
+                        manager.handle_id = tmp;
+                        Log.d(TAG,"Apply Echo");
+                        sendEcho(manager);
+                    }else if(manager.messageHandlers.get(ret).getMms().equals("message") && json.getString("mms").equals("event")){
+                        if(json.isNull("jsep")){
+                            Log.d(TAG,"Try to init one media engine & offer sdp");
+                            SignalingParameters params = new SignalingParameters(new LinkedList<IceServerInfo>(), true,
+                                null, "ws://10.0.1.116:6660",null,null,null);
+                            events.onConnectedToRoom(params);
+                        }else{
+                            Log.d(TAG,"Try to set remote description");
+                            JSONObject sdpjson = json.getJSONObject("jsep");
+                            SessionDescriptionInfo sdp = new SessionDescriptionInfo("answer",
+                                    sdpjson.getString("sdp"));
+                            events.onRemoteDescription(sdp);
+                        }
+                    }else if(json.getString("mms").equals("ack")){
+                        Log.d(TAG,"Handle ack");
+                        return;
+                    }
+                }else{
+                    Log.d(TAG,"Did not have sended " + manager.session_id);
+                }
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+
+        }else{
+            return;
+        }
+    }
+
+    private void onMessageRecord(final JSONObject json,final SignalingEvents events,MCMessageManager manager){
+        if(!json.isNull("transaction")){
+            try {
+                int ret = CheckIfInServerManager(manager,json.getString("transaction"));
+                if(ret != 10000){
+                    //response what have sended
+                    if(manager.messageHandlers.get(ret).getMms().equals("attach")){
+                        //Get handle id after send attach
+                        JSONObject data = json.getJSONObject("data");
+                        String handle_Id = data.getString("id");
+                        long tmp = Long.parseLong(handle_Id);
+                        manager.handle_id = tmp;
+                        Log.d(TAG,"Apply Record");
+                        sendRecord(manager);
+                    }else if(manager.messageHandlers.get(ret).getMms().equals("message")){
+                        if(json.getString("mms").equals("success")){
+                            //server is ready to receive sdp offer
+                            Log.d(TAG,"Try to init one media engine & offer sdp");
+                            SignalingParameters params = new SignalingParameters(new LinkedList<IceServerInfo>(), true,
+                                    null, "ws://10.0.1.116:6660",null,null,null);
+                            events.onConnectedToRoom(params);
+                        }
+                        if(json.getString("mms").equals("event") && manager.messageHandlers.get(ret).getMms().equals("message")){
+                            if(json.isNull("jsep")){
+                                //server receive stop record
+                                events.onChannelClose();
+                            }else{
+                                //server have received offer sdp,try to add answer sdp to media engine
+                                Log.d(TAG,"Try to set remote description");
+                                JSONObject sdpjson = json.getJSONObject("jsep");
+                                SessionDescriptionInfo sdp = new SessionDescriptionInfo("answer",
+                                    sdpjson.getString("sdp"));
+                                events.onRemoteDescription(sdp);
+                            }
+                        }
+                    }else if(json.getString("mms").equals("ack")){
+                        Log.d(TAG,"Handle ack");
+                        return;
+                    }
+                }else{
+                    Log.d(TAG,"Did not have sended " + manager.session_id);
+                }
+            }catch (JSONException e){
+                e.printStackTrace();
+            }
+        }else{
+            return;
+        }
+    }
+
+    private void onMessagePlay(final JSONObject json,final SignalingEvents events,MCMessageManager manager){
+        Log.d(TAG,"onMessagePlay");
+        if(!json.isNull("transaction")){
+            try {
+                int ret = CheckIfInServerManager(manager,json.getString("transaction"));
+                if(ret != 10000){
+                    //response what have sended
+                    if(manager.messageHandlers.get(ret).getMms().equals("attach")){
+                        //Get handle id after send attach
+                        JSONObject data = json.getJSONObject("data");
+                        String handle_Id = data.getString("id");
+                        long tmp = Long.parseLong(handle_Id);
+                        manager.handle_id = tmp;
+                        Log.d(TAG,"Apply Play");
+                        sendListFiles(manager);
+                    }else if(manager.messageHandlers.get(ret).getMms().equals("message")){
+                        if(json.getString("mms").equals("success")){
+                            Log.d(TAG,"Get File to play");
+                            getFileToPlay(manager,json);
+                        }else if(json.getString("mms").equals("event") && !json.isNull("jsep")){
+                            Log.d(TAG,"Get offer sdp,Try to init one media connection");
+                            JSONObject sdpjson = json.getJSONObject("jsep");
+                            SessionDescriptionInfo sdp = new SessionDescriptionInfo("offer",
+                                    sdpjson.getString("sdp"));
+                            events.onConnectedToAnswer(sdp);
+                        }
+                    }
+                }
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }else{
+            try {
+                if(json.getString("mms").equals("hangup")){
+                    events.onChannelClose();
+                }
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -288,7 +483,7 @@ public class WebSocketClient implements ClientInterface,WebSocketChannelClient.W
                     json.put("handle_id",manager.handle_id);
                     JSONObject data = new JSONObject();
                     data.put("request","play");
-                    long tmp = Long.parseLong("8378192593974659");
+                    long tmp = Long.parseLong("1804345911226965");
                     data.put("id",tmp);
                     String data_string = data.toString();
                     json.put("body",data);
@@ -427,8 +622,13 @@ public class WebSocketClient implements ClientInterface,WebSocketChannelClient.W
                 jsonPut(upjson,"session_id",manager.session_id);
                 jsonPut(upjson,"handle_id",manager.handle_id);
                 JSONObject body = new JSONObject();
-                jsonPut(body,"audio",true);
-                jsonPut(body,"video",true);
+                if(manager.service_type.equals("RECORD")){
+                    jsonPut(body,"request","record");
+                    jsonPut(body,"name","shitest");
+                }else{
+                    jsonPut(body,"audio",true);
+                    jsonPut(body,"video",true);
+                }
                 jsonPut(upjson,"body",body);
                 JSONObject json = new JSONObject();
                 jsonPut(json, "sdp", sdp.description);
@@ -501,20 +701,29 @@ public class WebSocketClient implements ClientInterface,WebSocketChannelClient.W
     }
 
     @Override
-    public void disconnectFromRoom(final String s) {
+    public void disconnectChannel(final String s) {
         handler.post(new Runnable() {
             @Override
             public void run() {
-                disconnectFromRoomInternal(s);
+                disconnectChannelInternal(s);
             }
         });
     }
 
-    private void disconnectFromRoomInternal(final String key){
+    private void disconnectChannelInternal(final String key){
         MCMessageManager manager = (MCMessageManager) MCMmessageMangers.get(key);
         MCMessageManager.MessageHandler handler = new MCMessageManager.MessageHandler("destroy");
         manager.messageHandlers.add(handler);
         wsClient.disconnect(true,handler.getTransaction(),manager.session_id);
+    }
+
+    public void disconnectWSC(){
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                wsClient.disconnectWS();
+            }
+        });
     }
 
     // --------------------------------------------------------------------

@@ -218,7 +218,7 @@ public class WebSocketChannelClient {
         }catch (JSONException e){
             reportError("error in disconnect" + e.getMessage());
         }
-        ws.disconnect();
+        /*ws.disconnect();
         Log.d(TAG,"Disconnecting WebSocket done");
 
         synchronized (closeEventLock) {
@@ -230,7 +230,25 @@ public class WebSocketChannelClient {
                     Log.e(TAG, "Wait error: " + e.toString());
                 }
             }
-        }
+        }*/
+    }
+
+    public void disconnectWS(){
+        ws.disconnect();
+        Log.d(TAG, "Disconnecting WebSocket done.");
+
+        // Wait for websocket close event to prevent websocket library from
+        // sending any pending messages to deleted looper thread.
+            synchronized (closeEventLock) {
+                while (!closeEvent) {
+                    try {
+                        closeEventLock.wait(CLOSE_TIMEOUT);
+                        break;
+                    } catch (InterruptedException e) {
+                        Log.e(TAG, "Wait error: " + e.toString());
+                    }
+                }
+            }
     }
 
     public void disconnectMC(boolean waitForComplete,String tran,long session_id) {

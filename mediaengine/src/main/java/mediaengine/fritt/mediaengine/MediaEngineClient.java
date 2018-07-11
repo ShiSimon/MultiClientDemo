@@ -125,6 +125,7 @@ public class MediaEngineClient {
 
     public static class MediaEngineParameters{
         public final boolean videoCallEnabled;
+        public final boolean audioCallEnabled;
         public final boolean loopback;
         public final boolean tracing;
         public final int videoWidth;
@@ -147,12 +148,14 @@ public class MediaEngineClient {
 
         public MediaEngineParameters(boolean videoCallEnabled, boolean loopback, boolean tracing,
                                      int videoWidth, int videoHeight, int videoFps, int videoMaxBitrate, String videoCodec,
-                                     boolean videoCodecHwAcceleration, boolean videoFlexfecEnabled, int audioStartBitrate,
+                                     boolean videoCodecHwAcceleration, boolean videoFlexfecEnabled, boolean audioCallEnabled,
+                                     int audioStartBitrate,
                                      String audioCodec, boolean noAudioProcessing, boolean aecDump, boolean useOpenSLES,
                                      boolean disableBuiltInAEC, boolean disableBuiltInAGC, boolean disableBuiltInNS,
                                      boolean enableLevelControl, boolean disableWebRtcAGCAndHPF
         ) {
             this.videoCallEnabled = videoCallEnabled;
+            this.audioCallEnabled = audioCallEnabled;
             this.loopback = loopback;
             this.tracing = tracing;
             this.videoWidth = videoWidth;
@@ -291,7 +294,7 @@ public class MediaEngineClient {
         localVideoTrack = null;
         remoteVideoTrack = null;
         localVideoSender = null;
-        enableAudio = true;
+        enableAudio = mediaEngineParameters.audioCallEnabled;
         localAudioTrack = null;
         statsTimer = new Timer();
 
@@ -511,7 +514,7 @@ public class MediaEngineClient {
         Log.d(TAG, "Closing peer connection done.");
         events.onPeerConnectionClosed();
         PeerConnectionFactory.stopInternalTracingCapture();
-        PeerConnectionFactory.shutdownInternalTracer();
+        //PeerConnectionFactory.shutdownInternalTracer();
         events = null;
     }
 

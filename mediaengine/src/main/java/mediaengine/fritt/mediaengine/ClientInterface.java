@@ -53,6 +53,8 @@ public interface ClientInterface {
      */
     void startService(final String service_name);
 
+    void stopRecord();
+
     /**
      * Send offer SDP to the other participant.
      */
@@ -76,7 +78,7 @@ public interface ClientInterface {
     /**
      * Disconnect from room.
      */
-    void disconnectFromRoom(final String key);
+    void disconnectChannel(final String key);
 
     /**
      * Callback interface for messages delivered on signaling channel.
