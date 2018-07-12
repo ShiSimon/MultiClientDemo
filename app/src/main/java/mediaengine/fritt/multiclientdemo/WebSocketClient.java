@@ -21,13 +21,13 @@ import mediaengine.fritt.mediaengine.SessionDescriptionInfo;
 
 import static android.webkit.ConsoleMessage.MessageLevel.LOG;
 
-public class WebSocketClient implements ClientInterface,WebSocketChannelClient.WebSocketChannelEvents {
+public class WebSocketClient implements ClientInterface,HttpWebSocketClient.HttpWebSocketEvents {
     private static final String TAG = "WSClient";
 
     private enum ConnectionState { NEW, CONNECTED, CLOSED, ERROR }
 
     private final Handler handler;
-    private WebSocketChannelClient wsClient;
+    private HttpWebSocketClient wsClient;
     private ConnectionState WSCState;
     //private RoomConnectionParameters connectionParameters;
     //private SignalingParameters params;
@@ -59,7 +59,7 @@ public class WebSocketClient implements ClientInterface,WebSocketChannelClient.W
     }
 
     private void connectToServerInternal(String url,int port){
-        wsClient = new WebSocketChannelClient(handler,this);
+        wsClient = new HttpWebSocketClient(handler,this);
         Log.d(TAG,"Try to connect server");
         wsClient.connect(url,port);
     }
@@ -418,7 +418,7 @@ public class WebSocketClient implements ClientInterface,WebSocketChannelClient.W
         }else{
             try {
                 if(json.getString("mms").equals("hangup")){
-                    events.onChannelClose();
+                    //events.onChannelClose();
                 }
             } catch (JSONException e) {
                 e.printStackTrace();
@@ -714,14 +714,14 @@ public class WebSocketClient implements ClientInterface,WebSocketChannelClient.W
         MCMessageManager manager = (MCMessageManager) MCMmessageMangers.get(key);
         MCMessageManager.MessageHandler handler = new MCMessageManager.MessageHandler("destroy");
         manager.messageHandlers.add(handler);
-        wsClient.disconnect(true,handler.getTransaction(),manager.session_id);
+        //wsClient.disconnect(true,handler.getTransaction(),manager.session_id);
     }
 
     public void disconnectWSC(){
         handler.post(new Runnable() {
             @Override
             public void run() {
-                wsClient.disconnectWS();
+                wsClient.disconnect();
             }
         });
     }

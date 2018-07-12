@@ -221,7 +221,7 @@ public class MainActivity extends Activity{
 
     private void startPlay(){
         Log.d(TAG,"startPlay");
-        mediaEngineParameters = new MediaEngineClient.MediaEngineParameters(false, false,
+        mediaEngineParameters = new MediaEngineClient.MediaEngineParameters(true, false,
                 false, 640, 480, 0, 0, "VP8",
                 true, false, false,0, "OPUS",
                 false, false, false, false, false,
@@ -436,11 +436,11 @@ public class MainActivity extends Activity{
             @Override
             public void run() {
                 Log.d(TAG,"close channel: " + key);
-                signalingEventsMap.remove(key);
                 MediaEngineClient client = clientMap.get(key);
                 client.close();
                 clientMap.remove(key);
                 MCEventsMap.remove(key);
+                //signalingEventsMap.remove(key);
                 fullscreenRender.clearImage();
                 pipRenderer.clearImage();
                 showRenderer.clearImage();

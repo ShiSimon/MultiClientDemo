@@ -35,4 +35,5 @@ dependencies {
     implementation files('libs/base_java.jar')
     implementation files('libs/libmediaengine_java.jar')
     implementation files('libs/MediaEngine_V1.0.jar')
+    implementation 'com.squareup.okhttp3:okhttp:3.8.1'
 }

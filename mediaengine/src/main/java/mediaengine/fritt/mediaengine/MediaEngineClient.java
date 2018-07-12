@@ -513,7 +513,7 @@ public class MediaEngineClient {
         options = null;
         Log.d(TAG, "Closing peer connection done.");
         events.onPeerConnectionClosed();
-        PeerConnectionFactory.stopInternalTracingCapture();
+        //PeerConnectionFactory.stopInternalTracingCapture();
         //PeerConnectionFactory.shutdownInternalTracer();
         events = null;
     }
