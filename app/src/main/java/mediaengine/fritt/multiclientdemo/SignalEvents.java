@@ -19,7 +19,7 @@ public class SignalEvents implements ClientInterface.SignalingEvents {
     @Override
     public void onCreateConnectToServer() {
         Log.d(TAG,"onCreateConnectedToServer");
-        activity.SendAttach(key);
+        //activity.SendAttach(key);
     }
 
     @Override

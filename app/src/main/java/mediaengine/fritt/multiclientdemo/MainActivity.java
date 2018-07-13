@@ -142,7 +142,7 @@ public class MainActivity extends Activity{
         disconnect_button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                disconnect();
+                disconnectFromEcho();
             }
         });
 
@@ -190,7 +190,8 @@ public class MainActivity extends Activity{
         clientMap.put("record-service",client);
         SignalEvents se = new SignalEvents(this,"record-service");
         wsc.registerEvent(se,"record-service");
-        clientInterface.startService("record-service");
+        //clientInterface.startService("record-service");
+        SendAttach("record-service");
     }
 
     private void startCall(){
@@ -216,7 +217,7 @@ public class MainActivity extends Activity{
         clientMap.put("echo-service",client);
         SignalEvents se = new SignalEvents(this,"echo-service");
         wsc.registerEvent(se,"echo-service");
-        clientInterface.startService("echo-service");
+        SendAttach("echo-service");
     }
 
     private void startPlay(){
@@ -246,7 +247,12 @@ public class MainActivity extends Activity{
         clientMap.put("play-service",client);
         SignalEvents se = new SignalEvents(this,"play-service");
         wsc.registerEvent(se,"play-service");
-        clientInterface.startService("play-service");
+        //clientInterface.startService("play-service");
+        SendAttach("play-service");
+    }
+
+    private void disconnectFromEcho(){
+        wsc.sendHangup();
     }
 
     private void disconnect(){
@@ -440,10 +446,13 @@ public class MainActivity extends Activity{
                 client.close();
                 clientMap.remove(key);
                 MCEventsMap.remove(key);
-                //signalingEventsMap.remove(key);
+                signalingEventsMap.remove(key);
                 fullscreenRender.clearImage();
                 pipRenderer.clearImage();
                 showRenderer.clearImage();
+                showRenderer.setZOrderMediaOverlay(false);
+                audioManager.stop();
+                audioManager = null;
             }
         });
     }

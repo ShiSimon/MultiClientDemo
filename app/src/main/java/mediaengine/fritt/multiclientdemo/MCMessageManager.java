@@ -5,7 +5,6 @@ import java.util.Random;
 
 public class MCMessageManager {
     public LinkedList<MessageHandler> messageHandlers;
-    public long session_id;
     public long handle_id;
     public String service_name;
     public String opaque_id;
