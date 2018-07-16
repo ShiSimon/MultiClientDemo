@@ -87,6 +87,8 @@ public interface ClientInterface {
      */
     interface SignalingEvents {
 
+        void onCreateSubscriber();
+
         void onCreateConnectToServer();
 
         void onShowFiles(final String msg);

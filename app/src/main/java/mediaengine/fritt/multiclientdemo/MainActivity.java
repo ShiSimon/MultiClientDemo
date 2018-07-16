@@ -43,6 +43,8 @@ public class MainActivity extends Activity{
     private MediaEngineRenderer mediaEngineRenderer;
     private MediaEngineRenderer showEngineRenderer;
     private MEglBase mEglBase;
+    private Button create_meet_button;
+    private Button join_meet_button;
     private Button start_button;
     private Button play_button;
     private Button record_button;
@@ -66,6 +68,8 @@ public class MainActivity extends Activity{
         pipRenderer = (SurfaceViewRender) findViewById(R.id.pip_video_view);
         fullscreenRender = (SurfaceViewRender) findViewById(R.id.full_screen_render);
         showRenderer = (SurfaceViewRender) findViewById(R.id.show_video_view);
+        create_meet_button = (Button) findViewById(R.id.conference);
+        join_meet_button = (Button) findViewById(R.id.join);
         start_button = (Button) findViewById(R.id.start);
         play_button = (Button) findViewById(R.id.play);
         record_button = (Button) findViewById(R.id.record);
@@ -99,6 +103,20 @@ public class MainActivity extends Activity{
             @Override
             public void onClick(View view) {
                 setSwappedFeeds(!isSwappedFeeds);
+            }
+        });
+
+        create_meet_button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                create_meet();
+            }
+        });
+
+        join_meet_button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                join_meet();
             }
         });
 
@@ -157,6 +175,68 @@ public class MainActivity extends Activity{
         clientInterface = wsc;
     }
 
+    private void create_meet(){
+        Log.d(TAG,"create_meet");
+        MediaEngineClient client = new MediaEngineClient();
+        MediaEngineClient.MediaConnectionEvents mcEvents = new MCEvents("conference-service",this);
+        mediaEngineParameters = new MediaEngineClient.MediaEngineParameters(true, false,
+                false, 640, 480, 0, 0, "VP8",
+                true, false, true,0, "OPUS",
+                false, false, false, false, false,
+                false, false, false);
+        client.createMediaConnectionFactory(getApplicationContext(), mediaEngineParameters, mcEvents);
+        Log.d(TAG,"After create　Factory");
+        if(audioManager == null){
+            audioManager = AppRTCAudioManager.create(getApplicationContext());
+            Log.d(TAG, "Starting the audio manager...");
+            audioManager.start(new AppRTCAudioManager.AudioManagerEvents() {
+                // This method will be called each time the number of available audio
+                // devices has changed.
+                @Override
+                public void onAudioDeviceChanged(
+                        AppRTCAudioManager.AudioDevice audioDevice, Set<AppRTCAudioManager.AudioDevice> availableAudioDevices) {
+                    onAudioManagerDevicesChanged(audioDevice, availableAudioDevices);
+                }
+            });
+        }
+        MCEventsMap.put("conference-service",mcEvents);
+        clientMap.put("conference-service",client);
+        SignalEvents se = new SignalEvents(this,"conference-service");
+        wsc.registerEvent(se,"conference-service");
+        SendAttach("conference-service",1);
+    }
+
+    private void join_meet(){
+        Log.d(TAG,"join_meet");
+        MediaEngineClient client = new MediaEngineClient();
+        MediaEngineClient.MediaConnectionEvents mcEvents = new MCEvents("conference-service-pub",this);
+        mediaEngineParameters = new MediaEngineClient.MediaEngineParameters(true, false,
+                false, 640, 480, 0, 0, "VP8",
+                true, false, true,0, "OPUS",
+                false, false, false, false, false,
+                false, false, false);
+        client.createMediaConnectionFactory(getApplicationContext(), mediaEngineParameters, mcEvents);
+        Log.d(TAG,"After create　Factory");
+        if(audioManager == null){
+            audioManager = AppRTCAudioManager.create(getApplicationContext());
+            Log.d(TAG, "Starting the audio manager...");
+            audioManager.start(new AppRTCAudioManager.AudioManagerEvents() {
+                // This method will be called each time the number of available audio
+                // devices has changed.
+                @Override
+                public void onAudioDeviceChanged(
+                        AppRTCAudioManager.AudioDevice audioDevice, Set<AppRTCAudioManager.AudioDevice> availableAudioDevices) {
+                    onAudioManagerDevicesChanged(audioDevice, availableAudioDevices);
+                }
+            });
+        }
+        MCEventsMap.put("conference-service-pub",mcEvents);
+        clientMap.put("conference-service-pub",client);
+        SignalEvents se = new SignalEvents(this,"conference-service-pub");
+        wsc.registerEvent(se,"conference-service-pub");
+        SendAttach("conference-service-pub",2);
+    }
+
     private void stopRecord(){
         Log.d(TAG,"Stop Record");
         clientInterface.stopRecord();
@@ -191,7 +271,7 @@ public class MainActivity extends Activity{
         SignalEvents se = new SignalEvents(this,"record-service");
         wsc.registerEvent(se,"record-service");
         //clientInterface.startService("record-service");
-        SendAttach("record-service");
+        SendAttach("record-service",0);
     }
 
     private void startCall(){
@@ -217,7 +297,7 @@ public class MainActivity extends Activity{
         clientMap.put("echo-service",client);
         SignalEvents se = new SignalEvents(this,"echo-service");
         wsc.registerEvent(se,"echo-service");
-        SendAttach("echo-service");
+        SendAttach("echo-service",0);
     }
 
     private void startPlay(){
@@ -248,7 +328,7 @@ public class MainActivity extends Activity{
         SignalEvents se = new SignalEvents(this,"play-service");
         wsc.registerEvent(se,"play-service");
         //clientInterface.startService("play-service");
-        SendAttach("play-service");
+        SendAttach("play-service",0);
     }
 
     private void disconnectFromEcho(){
@@ -292,13 +372,24 @@ public class MainActivity extends Activity{
         // TODO(henrika): add callback handler.
     }
 
-    public void SendAttach(String key){
+    public void SendAttach(String key,int id){
         if(key.startsWith("echo")){
             wsc.sendAttach(key,"echo-kXEcj2JFjoUF","service.echo","ECHO");
         }else if(key.startsWith("record")){
             wsc.sendAttach(key,"recordplaytest-U2Md9D08sA3L","service.recordplay","RECORD");
         }else if(key.startsWith("play")){
             wsc.sendAttach(key,"recordplaytest-U2Md9D08sA3L","service.recordplay","PLAY");
+        }else if(key.startsWith("conference")){
+            if(key.equals("conference-service-pub")){
+                wsc.sendAttach(key,"conferencetest-A63K9WhtAMRb","service.conference","CONFERENCE-PUB");
+            }else if(key.equals("conference-service-sub") && id == 2){
+                wsc.sendAttach(key,"conferencetest-A63K9WhtAMRb","service.conference","CONFERENCE-SUB");
+            }else if(key.equals("conference-service-sub") && id == 1){
+                wsc.sendAttach(key,"videoroomtest-9pPNCS0Z4HY2","service.conference","CONFERENCE-SUB");
+            }
+            else{
+                wsc.sendAttach(key,"videoroomtest-9pPNCS0Z4HY2","service.conference","CONFERENCE");
+            }
         }
     }
 
@@ -332,6 +423,35 @@ public class MainActivity extends Activity{
         logAndToast("Create ANSWER Over");
     }
 
+    public void onCreateSubscriber(final String key){
+        Log.d(TAG,"onCreateSubscriber");
+        MediaEngineClient client = new MediaEngineClient();
+        MediaEngineClient.MediaConnectionEvents mcEvents = new MCEvents("conference-service-sub",this);
+        client.createMediaConnectionFactory(getApplicationContext(), mediaEngineParameters, mcEvents);
+        Log.d(TAG,"After create　Factory");
+        if(audioManager == null){
+            audioManager = AppRTCAudioManager.create(getApplicationContext());
+            Log.d(TAG, "Starting the audio manager...");
+            audioManager.start(new AppRTCAudioManager.AudioManagerEvents() {
+                // This method will be called each time the number of available audio
+                // devices has changed.
+                @Override
+                public void onAudioDeviceChanged(
+                        AppRTCAudioManager.AudioDevice audioDevice, Set<AppRTCAudioManager.AudioDevice> availableAudioDevices) {
+                    onAudioManagerDevicesChanged(audioDevice, availableAudioDevices);
+                }
+            });
+        }
+        MCEventsMap.put("conference-service-sub",mcEvents);
+        clientMap.put("conference-service-sub",client);
+        SignalEvents se = new SignalEvents(this,"conference-service-sub");
+        wsc.registerEvent(se,"conference-service-sub");
+        if(key.equals("conference-service")){
+            SendAttach("conference-service-sub",1);
+        }else{
+            SendAttach("conference-service-sub",2);
+        }
+    }
 
     public void onConnectedToRoom(final String key, final ClientInterface.SignalingParameters params){
         Log.d(TAG, "onConnectedToRoomInternal,get response from server");
@@ -344,7 +464,7 @@ public class MainActivity extends Activity{
     }
 
     private void onConnectedToRoomInternal(final String key,final ClientInterface.SignalingParameters params) {
-        Log.d(TAG, "onConnectedToRoomInternal");
+        Log.d(TAG, "onConnectedToRoomInternal,key = " + key);
 
         Log.d(TAG, "Create PC");
         clientMap.get(key).createMediaConnection(mEglBase, mediaEngineRenderer, params);
@@ -386,9 +506,10 @@ public class MainActivity extends Activity{
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                if(key.equals("echo-service") || key.equals("record-service")){
+                if(key.equals("echo-service") || key.equals("record-service") || key.equals("conference-service-pub")
+                        ||key.equals("conference-service")){
                     clientInterface.sendOfferSdp(key,sdp);
-                }else if(key.equals("play-service")){
+                }else if(key.equals("play-service")||key.equals("conference-service-sub")){
                     clientInterface.sendAnswerSdp(key,sdp);
                 }
                 if (mediaEngineParameters.videoMaxBitrate > 0) {

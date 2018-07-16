@@ -33,7 +33,10 @@ public class WebSocketClient implements ClientInterface,HttpWebSocketClient.Http
     private ConcurrentHashMap MCMmessageMangers;
 
     private ConcurrentHashMap events;
+    private static int num = 1;
 
+    private String publish_ID;
+    private String private_ID;
     public WebSocketClient() {
         events = new ConcurrentHashMap();
         MCMmessageMangers = new ConcurrentHashMap();
@@ -221,6 +224,22 @@ public class WebSocketClient implements ClientInterface,HttpWebSocketClient.Http
         try {
             Log.d(TAG,"onWebSocketMessage");
             JSONObject json = new JSONObject(msg);
+            handler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    Log.d(TAG,"Start heartbeat");
+                    JSONObject json = new JSONObject();
+                    String tran = MCMessageManager.getRandomString(12);
+                    try {
+                        json.put("mms","keepalive");
+                        json.put("transaction",tran);
+                        json.put("session_id",session_id);
+                        wsClient.send(json.toString());
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                }
+            },1000*15);
             if(msg.length() > 0){
                 if(json.isNull("session_id")){
                     //Only get in when response create
@@ -230,30 +249,11 @@ public class WebSocketClient implements ClientInterface,HttpWebSocketClient.Http
                     Log.d(TAG,"session_id = " + session_Id);
                     long test = Long.parseLong(session_Id);
                     session_id = test;
-                    handler.postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            Log.d(TAG,"Start heartbeat");
-                            JSONObject json = new JSONObject();
-                            String tran = MCMessageManager.getRandomString(12);
-                            try {
-                                json.put("mms","keepalive");
-                                json.put("transaction",tran);
-                                json.put("session_id",session_id);
-                                wsClient.send(json.toString());
-                            } catch (JSONException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    },1000*15);
                 }else if(!json.isNull("transaction")){
                     String tran = json.getString("transaction");
                     if(json.getString("mms").equals("ack")){
                         return;
                     }
-                    String handle_id = null;
-                    String session_id = json.getString("session_id");
-                    long id = Long.parseLong(session_id);
                     String name = getEventObject(tran);
                     Log.d(TAG,"name = " + name);
                     SignalingEvents event = (SignalingEvents) events.get(name);
@@ -264,6 +264,8 @@ public class WebSocketClient implements ClientInterface,HttpWebSocketClient.Http
                         onMessageRecord(json,event,manger);
                     }else if(manger.service_type.equals("PLAY")){
                         onMessagePlay(json,event,manger);
+                    }else if(manger.service_type.startsWith("CONFERENCE")){
+                        onMessageConference(json,event,manger);
                     }else{
                         Log.d(TAG,"Did not add service");
                     }
@@ -274,6 +276,11 @@ public class WebSocketClient implements ClientInterface,HttpWebSocketClient.Http
                     SignalingEvents event = (SignalingEvents) events.get(key);
                     if(json.getString("mms").equals("hangup")){
                         event.onChannelClose();
+                    }else if(json.getJSONObject("servicedata").getJSONObject("data").getString("conference")
+                            .equals("event")){
+                        JSONArray publishers = json.getJSONObject("servicedata").getJSONObject("data").getJSONArray("publishers");
+                        publish_ID = publishers.getJSONObject(0).getString("id");
+                        event.onCreateSubscriber();
                     }
                 }
             }else{
@@ -292,6 +299,73 @@ public class WebSocketClient implements ClientInterface,HttpWebSocketClient.Http
             }
         }
         return null;
+    }
+
+    private void onMessageConference(final JSONObject json,final SignalingEvents events,MCMessageManager manager){
+        if(!json.isNull("transaction")){
+            try{
+                int ret = CheckIfInServerManager(manager,json.getString("transaction"));
+                if(ret != 10000){
+                    if(manager.messageHandlers.get(ret).getMms().equals("attach")){
+                        JSONObject data = json.getJSONObject("data");
+                        String handle_id = data.getString("id");
+                        long tmp = Long.parseLong(handle_id);
+                        manager.handle_id = tmp;
+                        if(manager.service_type.equals("CONFERENCE-PUB") || manager.service_type.equals("CONFERENCE")){
+                            Log.d(TAG,"Create a Conference");
+                            sendCreateConference(manager);
+                        }else{
+                            Log.d(TAG,"Join a Conference");
+                            sendJoinConference(manager);
+                        }
+                    }else if(manager.messageHandlers.get(ret).getMms().equals("message") && json.getString("mms").equals("event")){
+                        if(json.isNull("jsep")){
+                            JSONArray publishers = json.getJSONObject("servicedata").getJSONObject("data").getJSONArray("publishers");
+                            if(publishers.length() == 0){
+                                Log.d(TAG,"Try to init one media engine & offer sdp");
+                                String private_id = json.getJSONObject("servicedata").getJSONObject("data").getString("private_id");
+                                private_ID = private_id;
+                                SignalingParameters params = new SignalingParameters(new LinkedList<IceServerInfo>(), true,
+                                        null, "wss://10.0.1.116:6661",null,null,null);
+                                events.onConnectedToRoom(params);
+                            }else{
+                                String publish_id = publishers.getJSONObject(0).getString("id");
+                                publish_ID = publish_id;
+                                String private_id = json.getJSONObject("servicedata").getJSONObject("data").getString("private_id");
+                                private_ID = private_id;
+                                events.onCreateSubscriber();
+                                Log.d(TAG,"Try to init one media engine & offer sdp");
+                                SignalingParameters params = new SignalingParameters(new LinkedList<IceServerInfo>(), true,
+                                        null, "wss://10.0.1.116:6661",null,null,null);
+                                events.onConnectedToRoom(params);
+                                //sendAttach("conference-service-sub","conferencetest-A63K9WhtAMRb","service.conference","CONFERENCE");
+                            }
+                        }else{
+                            if(json.getJSONObject("jsep").getString("type").equals("offer")){
+                                Log.d(TAG,"Get offer sdp,Try to init one media connection");
+                                JSONObject sdpjson = json.getJSONObject("jsep");
+                                SessionDescriptionInfo sdp = new SessionDescriptionInfo("offer",
+                                        sdpjson.getString("sdp"));
+                                events.onConnectedToAnswer(sdp);
+                            }else if (json.getJSONObject("jsep").getString("type").equals("answer")){
+                                Log.d(TAG,"Try to set remote description");
+                                JSONObject sdpjson = json.getJSONObject("jsep");
+                                SessionDescriptionInfo sdp = new SessionDescriptionInfo("answer",
+                                    sdpjson.getString("sdp"));
+                                events.onRemoteDescription(sdp);
+                            }
+                        }
+                    }else if(json.getString("mms").equals("ack")){
+                        Log.d(TAG,"Handle ack");
+                        return;
+                    }
+                }
+            }catch (JSONException e){
+                Log.d(TAG,"Error in parse conference " + e.getMessage());
+            }
+        }else{
+            return;
+        }
     }
 
     private void onMessageEcho(final JSONObject json,final SignalingEvents events,MCMessageManager manager){
@@ -506,6 +580,69 @@ public class WebSocketClient implements ClientInterface,HttpWebSocketClient.Http
         });
     }
 
+    private void sendCreateConference(final MCMessageManager manager){
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                MCMessageManager.MessageHandler handler =
+                        new MCMessageManager.MessageHandler("message");
+                manager.messageHandlers.add(handler);
+                JSONObject json = new JSONObject();
+                try{
+                    json.put("mms",handler.getMms());
+                    json.put("transaction",handler.getTransaction());
+                    json.put("session_id",session_id);
+                    json.put("handle_id",manager.handle_id);
+                    JSONObject data = new JSONObject();
+                    data.put("request","join");
+                    data.put("conf",1234);
+                    data.put("ptype","publisher");
+                    if(num % 2 == 0){
+                        data.put("display","fan");
+                        num += 1;
+                    }else{
+                        data.put("display","bai");
+                        num += 1;
+                    }
+                    json.put("body",data);
+                    Log.d(TAG,"C->S: " + json.toString());
+                    wsClient.send(json.toString());
+                }catch (JSONException e){
+                    Log.d(TAG,"Error in create conference " + e.getMessage());
+                }
+            }
+        });
+    }
+
+    private void sendJoinConference(final MCMessageManager manager){
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                MCMessageManager.MessageHandler handler =
+                        new MCMessageManager.MessageHandler("message");
+                manager.messageHandlers.add(handler);
+                JSONObject json = new JSONObject();
+                try{
+                    json.put("mms",handler.getMms());
+                    json.put("transaction",handler.getTransaction());
+                    json.put("session_id",session_id);
+                    json.put("handle_id",manager.handle_id);
+                    JSONObject data = new JSONObject();
+                    data.put("request","join");
+                    data.put("conf",1234);
+                    data.put("ptype","subscriber");
+                    data.put("feed",Long.parseLong(publish_ID));
+                    data.put("private_id",Long.parseLong(private_ID));
+                    json.put("body",data);
+                    Log.d(TAG,"C->S: " + json.toString());
+                    wsClient.send(json.toString());
+                }catch (JSONException e){
+                    Log.d(TAG,"Error in create conference " + e.getMessage());
+                }
+            }
+        });
+    }
+
     private void sendEcho(final MCMessageManager manager){
         handler.post(new Runnable() {
             @Override
@@ -669,6 +806,10 @@ public class WebSocketClient implements ClientInterface,HttpWebSocketClient.Http
                 if(manager.service_type.equals("RECORD")){
                     jsonPut(body,"request","record");
                     jsonPut(body,"name","shitest");
+                }else if(manager.service_type.startsWith("CONFERENCE")){
+                    jsonPut(body,"request","configure");
+                    jsonPut(body,"audio",true);
+                    jsonPut(body,"video",true);
                 }else{
                     jsonPut(body,"audio",true);
                     jsonPut(body,"video",true);
@@ -699,8 +840,14 @@ public class WebSocketClient implements ClientInterface,HttpWebSocketClient.Http
                 jsonPut(upjson,"session_id",session_id);
                 jsonPut(upjson,"handle_id",manager.handle_id);
                 JSONObject body = new JSONObject();
-                jsonPut(body,"request","start");
-                jsonPut(upjson,"body",body);
+                if(key.equals("play-service")){
+                    jsonPut(body,"request","start");
+                    jsonPut(upjson,"body",body);
+                }else{
+                    jsonPut(body,"request","start");
+                    jsonPut(body,"conf",1234);
+                    jsonPut(upjson,"body",body);
+                }
                 JSONObject json = new JSONObject();
                 jsonPut(json, "sdp", sdp.description);
                 jsonPut(json, "type", "answer");

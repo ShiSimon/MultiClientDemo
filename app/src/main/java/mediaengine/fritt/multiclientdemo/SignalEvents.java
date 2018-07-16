@@ -16,6 +16,12 @@ public class SignalEvents implements ClientInterface.SignalingEvents {
         this.activity = activity;
     }
     private String key;
+
+    @Override
+    public void onCreateSubscriber() {
+        activity.onCreateSubscriber(key);
+    }
+
     @Override
     public void onCreateConnectToServer() {
         Log.d(TAG,"onCreateConnectedToServer");
