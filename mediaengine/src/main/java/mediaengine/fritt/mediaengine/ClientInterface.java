@@ -125,6 +125,8 @@ public interface ClientInterface {
          * Callback fired once channel error happened.
          */
         void onChannelError(final String description);
+
+        void onAllDisconnect();
     }
 
 

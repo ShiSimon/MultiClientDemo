@@ -79,4 +79,9 @@ public class SignalEvents implements ClientInterface.SignalingEvents {
     public void onChannelError(String s) {
 
     }
+
+    @Override
+    public void onAllDisconnect() {
+        activity.disconnect();
+    }
 }

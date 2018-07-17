@@ -955,4 +955,8 @@ public class WebSocketClient implements ClientInterface,HttpWebSocketClient.Http
         return new IceCandidateInfo(
                 json.getString("id"), json.getInt("label"), json.getString("candidate"));
     }
+
+    public void leaveMeet(){
+
+    }
 }

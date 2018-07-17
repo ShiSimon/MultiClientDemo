@@ -21,6 +21,7 @@ import mediaengine.fritt.mediaengine.IceCandidateInfo;
 import mediaengine.fritt.mediaengine.IceServerInfo;
 import mediaengine.fritt.mediaengine.MEglBase;
 import mediaengine.fritt.mediaengine.MediaEngineClient;
+import mediaengine.fritt.mediaengine.MediaEngineFactory;
 import mediaengine.fritt.mediaengine.MediaEngineRenderer;
 import mediaengine.fritt.mediaengine.SessionDescriptionInfo;
 import mediaengine.fritt.mediaengine.StatesReporter;
@@ -45,6 +46,7 @@ public class MainActivity extends Activity{
     private MEglBase mEglBase;
     private Button create_meet_button;
     private Button join_meet_button;
+    private Button leave_meet_button;
     private Button start_button;
     private Button play_button;
     private Button record_button;
@@ -71,6 +73,7 @@ public class MainActivity extends Activity{
         create_meet_button = (Button) findViewById(R.id.conference);
         join_meet_button = (Button) findViewById(R.id.join);
         start_button = (Button) findViewById(R.id.start);
+        leave_meet_button = (Button) findViewById(R.id.leave);
         play_button = (Button) findViewById(R.id.play);
         record_button = (Button) findViewById(R.id.record);
         stop_button = (Button) findViewById(R.id.stop);
@@ -81,7 +84,7 @@ public class MainActivity extends Activity{
         pipRenderer.setScaleType("SCALE_ASPECT_FIT");
 
         fullscreenRender.init(mEglBase);
-        fullscreenRender.setScaleType("SCALE_ASPECT_FILL");
+        fullscreenRender.setScaleType("SCALE_ASPECT_FIT");
         pipRenderer.setZOrderMediaOverlay(true);
         pipRenderer.setEnableHardwareScaler(true /* enabled */);
         fullscreenRender.setEnableHardwareScaler(true);
@@ -117,6 +120,13 @@ public class MainActivity extends Activity{
             @Override
             public void onClick(View view) {
                 join_meet();
+            }
+        });
+
+        leave_meet_button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                leave_meet();
             }
         });
 
@@ -237,6 +247,11 @@ public class MainActivity extends Activity{
         SendAttach("conference-service-pub",2);
     }
 
+    private void leave_meet(){
+        Log.d(TAG,"leave meet");
+        wsc.leaveMeet();
+    }
+
     private void stopRecord(){
         Log.d(TAG,"Stop Record");
         clientInterface.stopRecord();
@@ -335,7 +350,7 @@ public class MainActivity extends Activity{
         wsc.sendHangup();
     }
 
-    private void disconnect(){
+    public void disconnect(){
         mediaEngineRenderer.release();
         showEngineRenderer.release();
         for(Object key:clientMap.keySet()){
@@ -564,16 +579,25 @@ public class MainActivity extends Activity{
             public void run() {
                 Log.d(TAG,"close channel: " + key);
                 MediaEngineClient client = clientMap.get(key);
-                client.close();
-                clientMap.remove(key);
-                MCEventsMap.remove(key);
-                signalingEventsMap.remove(key);
-                fullscreenRender.clearImage();
-                pipRenderer.clearImage();
-                showRenderer.clearImage();
-                showRenderer.setZOrderMediaOverlay(false);
-                audioManager.stop();
-                audioManager = null;
+                Log.d(TAG,"key: " + key + "size = " + clientMap.size());
+                if(client == null){
+
+                }else{
+                    client.close();
+                    clientMap.remove(key);
+                    MCEventsMap.remove(key);
+                    signalingEventsMap.remove(key);
+                    fullscreenRender.clearImage();
+                    pipRenderer.clearImage();
+                    showRenderer.clearImage();
+                    showRenderer.setZOrderMediaOverlay(false);
+                    if(clientMap.size() == 0){
+                        audioManager.stop();
+                        audioManager = null;
+                    }
+                }
+                //audioManager.stop();
+                //audioManager = null;
             }
         });
     }
@@ -581,7 +605,7 @@ public class MainActivity extends Activity{
     private void setSwappedFeeds(boolean isSwappedFeeds) {
         Log.d(TAG, "setSwappedFeeds: " + isSwappedFeeds);
         this.isSwappedFeeds = isSwappedFeeds;
-        mediaEngineRenderer.setRenderer(isSwappedFeeds);
+        //mediaEngineRenderer.setRenderer(isSwappedFeeds);
     }
 
 

@@ -6,31 +6,47 @@
     android:orientation="vertical"
     tools:context=".MainActivity">
 
-    <FrameLayout
+    <GridLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
         <mediaengine.fritt.mediaengine.SurfaceViewRender
-            android:id="@+id/full_screen_render"
-            android:layout_width="match_parent"
-            android:layout_height="500dp" />
+            android:id="@+id/show_video_view"
+            android:layout_width="wrap_content"
+            android:layout_height="144dp" />
+
+        <TextView
+            android:id="@+id/textView4"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="remote1" />
 
         <mediaengine.fritt.mediaengine.SurfaceViewRender
             android:id="@+id/pip_video_view"
             android:layout_width="wrap_content"
             android:layout_height="144dp"
-            android:layout_gravity="bottom|right"
-            android:layout_margin="16dp" />
+            android:layout_gravity="bottom|right" />
+
+        <TextView
+            android:id="@+id/textView5"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="remote2" />
 
         <mediaengine.fritt.mediaengine.SurfaceViewRender
-            android:id="@+id/show_video_view"
+            android:id="@+id/full_screen_render"
             android:layout_width="wrap_content"
             android:layout_height="144dp"
-            android:layout_gravity="center|left"
-            android:layout_margin="16dp" />
+            android:layout_gravity="center|left" />
 
-    </FrameLayout>
+        <TextView
+            android:id="@+id/textView6"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="local" />
+
+    </GridLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -51,6 +67,12 @@
                 android:layout_width="75dp"
                 android:layout_height="48dp"
                 android:text="join" />
+
+            <Button
+                android:id="@+id/leave"
+                android:layout_width="75dp"
+                android:layout_height="48dp"
+                android:text="leave" />
 
         </LinearLayout>
         <LinearLayout
