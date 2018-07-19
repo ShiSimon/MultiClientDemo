@@ -3,58 +3,59 @@ package mediaengine.fritt.multiclientdemo;
 import android.util.Log;
 
 import mediaengine.fritt.mediaengine.IceCandidateInfo;
+import mediaengine.fritt.mediaengine.MediaConnectionEvents;
 import mediaengine.fritt.mediaengine.MediaEngineClient;
 import mediaengine.fritt.mediaengine.SessionDescriptionInfo;
 import mediaengine.fritt.mediaengine.StatesReporter;
 
-public class MCEvents implements MediaEngineClient.MediaConnectionEvents {
+public class MCEvents implements MediaConnectionEvents {
     private static final String TAG="MCEvents";
-    private String key;
+    //private String key;
     private MainActivity activity;
 
-    public MCEvents(String key,MainActivity activity){
-        this.key = key;
+    public MCEvents(MainActivity activity){
         this.activity = activity;
     }
+
     @Override
-    public void onLocalDescription(SessionDescriptionInfo sessionDescriptionInfo) {
+    public void onLocalDescription(SessionDescriptionInfo sessionDescriptionInfo, MediaEngineClient.MediaConnectionNode mediaConnectionNode) {
         Log.d(TAG,"onLocalDescription");
-        activity.onLocalDescription(key,sessionDescriptionInfo);
+        activity.onLocalDescription(sessionDescriptionInfo,mediaConnectionNode);
     }
 
     @Override
-    public void onIceCandidate(IceCandidateInfo iceCandidateInfo) {
+    public void onIceCandidate(IceCandidateInfo iceCandidateInfo, MediaEngineClient.MediaConnectionNode mediaConnectionNode) {
         Log.d(TAG,"onIceCandidate");
-        activity.onIceCandidate(key,iceCandidateInfo);
+        activity.onIceCandidate(iceCandidateInfo,mediaConnectionNode);
     }
 
     @Override
-    public void onIceCandidatesRemoved(IceCandidateInfo[] iceCandidateInfos) {
-
-    }
-
-    @Override
-    public void onIceConnected() {
-        activity.onIceConnected();
-    }
-
-    @Override
-    public void onIceDisconnected() {
+    public void onIceCandidatesRemoved(IceCandidateInfo[] iceCandidateInfos, MediaEngineClient.MediaConnectionNode mediaConnectionNode) {
 
     }
 
     @Override
-    public void onPeerConnectionClosed() {
+    public void onIceConnected(MediaEngineClient.MediaConnectionNode mediaConnectionNode) {
+        activity.onIceConnected(mediaConnectionNode);
+    }
+
+    @Override
+    public void onIceDisconnected(MediaEngineClient.MediaConnectionNode mediaConnectionNode) {
 
     }
 
     @Override
-    public void onPeerConnectionStatsReady(StatesReporter[] statesReporters) {
+    public void onMediaConnectionClosed(MediaEngineClient.MediaConnectionNode mediaConnectionNode) {
 
     }
 
     @Override
-    public void onPeerConnectionError(String s) {
+    public void onMediaConnectionStatsReady(StatesReporter[] statesReporters, MediaEngineClient.MediaConnectionNode mediaConnectionNode) {
+
+    }
+
+    @Override
+    public void onMediaConnectionError(String s, MediaEngineClient.MediaConnectionNode mediaConnectionNode) {
 
     }
 }

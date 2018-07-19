@@ -132,7 +132,7 @@ public class SurfaceViewRender extends SurfaceView implements SurfaceHolder.Call
     }
 
     public void renderFrame(VideoRenderer.I420Frame frame) {
-        Log.d(TAG,"renderFrame");
+        //Log.d(TAG,"renderFrame");
         this.updateFrameDimensionsAndReportEvents(frame);
         this.eglRenderer.renderFrame(frame);
     }

@@ -14,12 +14,15 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import mediaengine.fritt.mediaengine.AppRTCAudioManager;
 import mediaengine.fritt.mediaengine.ClientInterface;
 import mediaengine.fritt.mediaengine.IceCandidateInfo;
 import mediaengine.fritt.mediaengine.IceServerInfo;
 import mediaengine.fritt.mediaengine.MEglBase;
+import mediaengine.fritt.mediaengine.MediaConnectionEvents;
 import mediaengine.fritt.mediaengine.MediaEngineClient;
 import mediaengine.fritt.mediaengine.MediaEngineFactory;
 import mediaengine.fritt.mediaengine.MediaEngineRenderer;
@@ -39,7 +42,7 @@ public class MainActivity extends Activity{
 
     private AppRTCAudioManager audioManager;
 
-    private Map<String,MediaEngineClient> clientMap;
+    //private Map<String,MediaEngineClient> clientMap;
     private ClientInterface clientInterface;
     private MediaEngineRenderer mediaEngineRenderer;
     private MediaEngineRenderer showEngineRenderer;
@@ -55,18 +58,22 @@ public class MainActivity extends Activity{
     private WebSocketClient wsc;
 
     private Map<String,SignalEvents> signalingEventsMap;
-    private Map<String,MediaEngineClient.MediaConnectionEvents> MCEventsMap;
+    //private Map<String,MediaConnectionEvents> MCEventsMap;
+    private MCEvents mcEvent;
     private boolean isError;
     private Toast logToast;
     private boolean isSwappedFeeds = true;
+    private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+    private MediaEngineClient mediaEngineClient;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Thread.setDefaultUncaughtExceptionHandler(new UnhandledExceptionHandler(this));
         setContentView(R.layout.activity_main);
 
         signalingEventsMap = new HashMap<>();
-        clientMap = new HashMap<>();
-        MCEventsMap = new HashMap<>();
+        //clientMap = new HashMap<>();
+        //MCEventsMap = new HashMap<>();
         pipRenderer = (SurfaceViewRender) findViewById(R.id.pip_video_view);
         fullscreenRender = (SurfaceViewRender) findViewById(R.id.full_screen_render);
         showRenderer = (SurfaceViewRender) findViewById(R.id.show_video_view);
@@ -183,12 +190,22 @@ public class MainActivity extends Activity{
         wsc = new WebSocketClient();
         wsc.connectToServer("10.0.1.116",6660);
         clientInterface = wsc;
+        mediaEngineClient = new MediaEngineClient(executor);
+        mcEvent = new MCEvents(this);
+        mediaEngineParameters = new MediaEngineClient.MediaEngineParameters(true, false,
+                false, 640, 480, 0, 0, "VP8",
+                true, false, true,0, "OPUS",
+                false, false, false, false, false,
+                false, false, false);
+        mediaEngineClient.createMediaConnectionFactory(getApplicationContext(),mediaEngineParameters,mEglBase,mcEvent,fullscreenRender);
+
+        //MCEventsMap.put("echo-service",mcEvents);
     }
 
     private void create_meet(){
-        Log.d(TAG,"create_meet");
+        /*Log.d(TAG,"create_meet");
         MediaEngineClient client = new MediaEngineClient();
-        MediaEngineClient.MediaConnectionEvents mcEvents = new MCEvents("conference-service",this);
+        MediaConnectionEvents mcEvents = new MCEvents("conference-service",this);
         mediaEngineParameters = new MediaEngineClient.MediaEngineParameters(true, false,
                 false, 640, 480, 0, 0, "VP8",
                 true, false, true,0, "OPUS",
@@ -213,13 +230,13 @@ public class MainActivity extends Activity{
         clientMap.put("conference-service",client);
         SignalEvents se = new SignalEvents(this,"conference-service");
         wsc.registerEvent(se,"conference-service");
-        SendAttach("conference-service",1);
+        SendAttach("conference-service",1);*/
     }
 
     private void join_meet(){
-        Log.d(TAG,"join_meet");
+        /*Log.d(TAG,"join_meet");
         MediaEngineClient client = new MediaEngineClient();
-        MediaEngineClient.MediaConnectionEvents mcEvents = new MCEvents("conference-service-pub",this);
+        MediaConnectionEvents mcEvents = new MCEvents("conference-service-pub",this);
         mediaEngineParameters = new MediaEngineClient.MediaEngineParameters(true, false,
                 false, 640, 480, 0, 0, "VP8",
                 true, false, true,0, "OPUS",
@@ -244,7 +261,7 @@ public class MainActivity extends Activity{
         clientMap.put("conference-service-pub",client);
         SignalEvents se = new SignalEvents(this,"conference-service-pub");
         wsc.registerEvent(se,"conference-service-pub");
-        SendAttach("conference-service-pub",2);
+        SendAttach("conference-service-pub",2);*/
     }
 
     private void leave_meet(){
@@ -258,9 +275,9 @@ public class MainActivity extends Activity{
     }
 
     private void startRecord(){
-        Log.d(TAG,"startRecord");
+        /*Log.d(TAG,"startRecord");
         MediaEngineClient client = new MediaEngineClient();
-        MediaEngineClient.MediaConnectionEvents mcEvents = new MCEvents("record-service",this);
+        MediaConnectionEvents mcEvents = new MCEvents("record-service",this);
         mediaEngineParameters = new MediaEngineClient.MediaEngineParameters(false, false,
                 false, 640, 480, 0, 0, "VP8",
                 true, false, true,0, "OPUS",
@@ -286,14 +303,14 @@ public class MainActivity extends Activity{
         SignalEvents se = new SignalEvents(this,"record-service");
         wsc.registerEvent(se,"record-service");
         //clientInterface.startService("record-service");
-        SendAttach("record-service",0);
+        SendAttach("record-service",0);*/
     }
 
     private void startCall(){
         Log.d(TAG,"startCall");
-        MediaEngineClient client = new MediaEngineClient();
-        MediaEngineClient.MediaConnectionEvents mcEvents = new MCEvents("echo-service",this);
-        client.createMediaConnectionFactory(getApplicationContext(), mediaEngineParameters, mcEvents);
+        //MediaEngineClient client = new MediaEngineClient();
+        //MediaConnectionEvents mcEvents = new MCEvents("echo-service",this);
+        //client.createMediaConnectionFactory(getApplicationContext(), mediaEngineParameters, mcEvents);
         Log.d(TAG,"After create　Factory");
         if(audioManager == null){
             audioManager = AppRTCAudioManager.create(getApplicationContext());
@@ -308,22 +325,20 @@ public class MainActivity extends Activity{
             }
         });
         }
-        MCEventsMap.put("echo-service",mcEvents);
-        clientMap.put("echo-service",client);
         SignalEvents se = new SignalEvents(this,"echo-service");
         wsc.registerEvent(se,"echo-service");
         SendAttach("echo-service",0);
     }
 
     private void startPlay(){
-        Log.d(TAG,"startPlay");
+        /*Log.d(TAG,"startPlay");
         mediaEngineParameters = new MediaEngineClient.MediaEngineParameters(true, false,
                 false, 640, 480, 0, 0, "VP8",
                 true, false, false,0, "OPUS",
                 false, false, false, false, false,
                 false, false, false);
         MediaEngineClient client = new MediaEngineClient();
-        MediaEngineClient.MediaConnectionEvents mEvents = new MCEvents("play-service",this);
+        MediaConnectionEvents mEvents = new MCEvents("play-service",this);
         client.createMediaConnectionFactory(getApplicationContext(),mediaEngineParameters,mEvents);
         if(audioManager == null){
             audioManager = AppRTCAudioManager.create(getApplicationContext());
@@ -343,6 +358,11 @@ public class MainActivity extends Activity{
         SignalEvents se = new SignalEvents(this,"play-service");
         wsc.registerEvent(se,"play-service");
         //clientInterface.startService("play-service");
+        SendAttach("play-service",0);*/
+
+        Log.d(TAG,"startPlay");
+        SignalEvents se = new SignalEvents(this,"play-service");
+        wsc.registerEvent(se,"play-service");
         SendAttach("play-service",0);
     }
 
@@ -353,11 +373,11 @@ public class MainActivity extends Activity{
     public void disconnect(){
         mediaEngineRenderer.release();
         showEngineRenderer.release();
-        for(Object key:clientMap.keySet()){
+        /*for(Object key:clientMap.keySet()){
             clientInterface.disconnectChannel(key.toString());
             clientMap.get(key).close();
         }
-        clientMap.clear();
+        clientMap.clear();*/
         wsc.disconnectWSC();
         if (pipRenderer != null) {
             pipRenderer.release();
@@ -427,21 +447,21 @@ public class MainActivity extends Activity{
         Log.d(TAG, "Create PC");
 
         params.offerSdp = sdp;
-        clientMap.get(key).createMediaConnection(mEglBase, showEngineRenderer, params);
+        mediaEngineClient.createMediaConnection(mEglBase, showEngineRenderer, params,key);
 
-        clientMap.get(key).setRemoteDescription(sdp);
+        mediaEngineClient.setRemoteDescription(sdp,key);
         Log.d(TAG, "I am receiver");
         logAndToast("Creating ANSWER...");
         // Create offer. Offer SDP will be sent to answering client in
         // PeerConnectionEvents.onLocalDescription event.
-        clientMap.get(key).createAnswer();
+        mediaEngineClient.createAnswer(key);
         logAndToast("Create ANSWER Over");
     }
 
     public void onCreateSubscriber(final String key){
-        Log.d(TAG,"onCreateSubscriber");
+        /*Log.d(TAG,"onCreateSubscriber");
         MediaEngineClient client = new MediaEngineClient();
-        MediaEngineClient.MediaConnectionEvents mcEvents = new MCEvents("conference-service-sub",this);
+        MediaConnectionEvents mcEvents = new MCEvents("conference-service-sub",this);
         client.createMediaConnectionFactory(getApplicationContext(), mediaEngineParameters, mcEvents);
         Log.d(TAG,"After create　Factory");
         if(audioManager == null){
@@ -465,7 +485,7 @@ public class MainActivity extends Activity{
             SendAttach("conference-service-sub",1);
         }else{
             SendAttach("conference-service-sub",2);
-        }
+        }*/
     }
 
     public void onConnectedToRoom(final String key, final ClientInterface.SignalingParameters params){
@@ -482,15 +502,14 @@ public class MainActivity extends Activity{
         Log.d(TAG, "onConnectedToRoomInternal,key = " + key);
 
         Log.d(TAG, "Create PC");
-        clientMap.get(key).createMediaConnection(mEglBase, mediaEngineRenderer, params);
+        mediaEngineClient.createMediaConnection(mEglBase,mediaEngineRenderer,params,key);
 
 
         Log.d(TAG, "I am caller");
         logAndToast("Creating OFFER...");
             // Create offer. Offer SDP will be sent to answering client in
             // PeerConnectionEvents.onLocalDescription event.
-        clientMap.get(key).createOffer();
-
+        mediaEngineClient.createOffer(key);
     }
 
     // Log |msg| and Toast about it.
@@ -515,12 +534,13 @@ public class MainActivity extends Activity{
         });
     }
 
-    public void onLocalDescription(final String key,final SessionDescriptionInfo sdp){
+    public void onLocalDescription(final SessionDescriptionInfo sdp, final MediaEngineClient.MediaConnectionNode mediaConnectionNode){
         Log.d(TAG, "onLocalDescription");
 
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
+                String key = mediaConnectionNode.key;
                 if(key.equals("echo-service") || key.equals("record-service") || key.equals("conference-service-pub")
                         ||key.equals("conference-service")){
                     clientInterface.sendOfferSdp(key,sdp);
@@ -529,17 +549,18 @@ public class MainActivity extends Activity{
                 }
                 if (mediaEngineParameters.videoMaxBitrate > 0) {
                     Log.d(TAG, "Set video maximum bitrate: " + mediaEngineParameters.videoMaxBitrate);
-                    clientMap.get(key).setVideoMaxBitrate(mediaEngineParameters.videoMaxBitrate);
+                    mediaEngineClient.setVideoMaxBitrate(mediaEngineParameters.videoMaxBitrate,mediaConnectionNode);
                 }
             }
         });
     }
 
-    public void onIceCandidate(final String key,final IceCandidateInfo candidate) {
+    public void onIceCandidate(final IceCandidateInfo candidate, final MediaEngineClient.MediaConnectionNode mediaConnectionNode) {
         Log.d(TAG,"onIceCandidate");
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
+                String key = mediaConnectionNode.key;
                 if (clientInterface != null) {
                     clientInterface.sendLocalIceCandidate(key,candidate);
                 }
@@ -553,7 +574,7 @@ public class MainActivity extends Activity{
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                clientMap.get(key).setRemoteDescription(sdp);
+                mediaEngineClient.setRemoteDescription(sdp,key);
 
                 //clientMap.get(key).createAnswer();
 
@@ -562,11 +583,11 @@ public class MainActivity extends Activity{
         });
     }
 
-    public void onIceConnected() {
+    public void onIceConnected(final MediaEngineClient.MediaConnectionNode mediaConnectionNode) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                logAndToast("ICE connected");
+                logAndToast("ICE connected: " + mediaConnectionNode.key);
                 //iceConnected = true;
                 callConnected();
             }
@@ -578,23 +599,16 @@ public class MainActivity extends Activity{
             @Override
             public void run() {
                 Log.d(TAG,"close channel: " + key);
-                MediaEngineClient client = clientMap.get(key);
-                Log.d(TAG,"key: " + key + "size = " + clientMap.size());
-                if(client == null){
+                if(mediaEngineClient == null){
 
                 }else{
-                    client.close();
-                    clientMap.remove(key);
-                    MCEventsMap.remove(key);
+                    MediaEngineClient.MediaConnectionNode mediaConnectionNode = mediaEngineClient.getPeerConnectionNode(key);
+                    mediaEngineClient.closeNode(mediaConnectionNode);
                     signalingEventsMap.remove(key);
                     fullscreenRender.clearImage();
                     pipRenderer.clearImage();
                     showRenderer.clearImage();
                     showRenderer.setZOrderMediaOverlay(false);
-                    if(clientMap.size() == 0){
-                        audioManager.stop();
-                        audioManager = null;
-                    }
                 }
                 //audioManager.stop();
                 //audioManager = null;
